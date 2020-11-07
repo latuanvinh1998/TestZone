@@ -8,6 +8,7 @@ from model import *
 from tqdm import tqdm
 import cv2
 import numpy as np
+from evaluate import *
 
 # transform = transforms.Compose([transforms.Resize(112), transforms.CenterCrop(112), transforms.ToTensor()])
 
@@ -25,22 +26,25 @@ transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.5
 img = cv2.imread("test.jpg")
 img=cv2.resize(img,(112,112))
 img=transform(img)
-# img = torch.from_numpy(img)
-# img = img.permute(2,0,1)
-# img = torch.unsqueeze(img, 0)
-# img = img.type(torch.FloatTensor)
+img = img.type(torch.FloatTensor)
+imgs = []
+for i in range(100):
+	imgs.append(img)
+img_batch = torch.utils.data.DataLoader(imgs, batch_size=32)
 
-print(img.shape)
+batch = next(iter(img_batch))
+print(batch.shape)
+# print(len(imgs))
 
-# model = MobileFaceNet(512).to(torch.device("cuda:0"))
-# arc = Arcface(embedding_size=512, classnum=15).to(torch.device("cuda:0"))
-# model.eval()
+model = MobileFaceNet(512).to(torch.device("cuda:0"))
+arc = Arcface(embedding_size=512, classnum=15).to(torch.device("cuda:0"))
+model.eval()
 
-# with torch.no_grad():
-# 	img = img.to(torch.device("cuda:0"))
-# 	#labels = labels.to(torch.device("cuda:0"))
-# 	emb = model.forward(img)
-# print(emb.shape)
+with torch.no_grad():
+	batch = batch.to(torch.device("cuda:0"))
+	#labels = labels.to(torch.device("cuda:0"))
+	emb = model.forward(batch)
+print(emb.shape)
 # prob = arc(emb, labels)
 # loss = CrossEntropyLoss()(prob, labels)
 # print(loss)
