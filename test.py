@@ -22,29 +22,31 @@ from evaluate import *
 # # 	pass
 # # plt.imshow(images[0].permute(1, 2, 0))
 # # plt.show()
-transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
-img = cv2.imread("test.jpg")
-img=cv2.resize(img,(112,112))
-img=transform(img)
-img = img.type(torch.FloatTensor)
-imgs = []
-for i in range(100):
-	imgs.append(img)
-img_batch = torch.utils.data.DataLoader(imgs, batch_size=32)
+# transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
+# img = cv2.imread("test.jpg")
+# img=cv2.resize(img,(112,112))
+# img=transform(img)
+# img = img.type(torch.FloatTensor)
+# imgs = []
+# for i in range(100):
+# 	imgs.append(img)
+# img_batch = torch.utils.data.DataLoader(imgs, batch_size=32)
 
-batch = next(iter(img_batch))
-print(batch.shape)
+# batch = next(iter(img_batch))
+# print(batch.shape)
 # print(len(imgs))
 
-model = MobileFaceNet(512).to(torch.device("cuda:0"))
-arc = Arcface(embedding_size=512, classnum=15).to(torch.device("cuda:0"))
-model.eval()
+# model = MobileFaceNet(512).to(torch.device("cuda:0"))
+# arc = Arcface(embedding_size=512, classnum=15).to(torch.device("cuda:0"))
 
-with torch.no_grad():
-	batch = batch.to(torch.device("cuda:0"))
-	#labels = labels.to(torch.device("cuda:0"))
-	emb = model.forward(batch)
-print(emb.shape)
+# imgs = model_evaluate(model, "pairs.txt", "../lfw")
+# model.eval()
+
+# with torch.no_grad():
+# 	batch = batch.to(torch.device("cuda:0"))
+# 	#labels = labels.to(torch.device("cuda:0"))
+# 	emb = model.forward(batch)
+# print(emb.shape)
 # prob = arc(emb, labels)
 # loss = CrossEntropyLoss()(prob, labels)
 # print(loss)

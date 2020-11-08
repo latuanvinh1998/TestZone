@@ -1,6 +1,8 @@
 import os
 import numpy as np
+import torch
 from sklearn.model_selection import KFold
+from torchvision import transforms
 import cv2
 import time
 
@@ -10,7 +12,7 @@ def read_pairs(pairs_filename):
 		for line in f.readlines()[1:]:
 			pair = line.strip().split()
 			pairs.append(pair)
-	return np.array(pairs)
+	return np.array(pairs, dtype = object)
 
 def add_extension(path):
     if os.path.exists(path+'.jpg'):
@@ -113,13 +115,53 @@ def evaluate(embeddings, actual_issame, nrof_folds=10, distance_metric=0, subtra
         np.asarray(actual_issame), nrof_folds=nrof_folds, distance_metric=distance_metric, subtract_mean=subtract_mean)
     return tpr, fpr, accuracy, 
 
-def model_evaluate(model, pair_path, lfw_dir, batch_size=8, nrof_fold=128 ,embedding_size=128):
-    print("Evaluating Model ...")
-    evaluate_start = time.time()
+def load_lfw(pair_path, lfw_dir, batch_size=32):
+    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
+
     pairs = read_pairs(os.path.expanduser(pair_path))
     lfw_paths, y_true = get_paths(os.path.expanduser(lfw_dir), pairs)
 
     nrof_images = len(lfw_paths)
     labels_array = np.arange(nrof_images)           
     image_paths_array = np.array(lfw_paths)
-    print("Good Luck!")
+    images=[]
+
+
+    for i in range(nrof_images):
+        img = cv2.imread(lfw_paths[i])
+        img=cv2.resize(img,(112,112))
+        img=transform(img)
+        img = img.type(torch.FloatTensor)
+        images.append(img)
+
+    img_batch = torch.utils.data.DataLoader(images, batch_size=batch_size)
+    return img_batch, y_true, nrof_images
+
+def model_evaluate(model, img_batch, y_true, nrof_images, nrof_fold=10 ,embedding_size=512):
+
+    print("Evaluating Model ...")
+    evaluate_start = time.time()
+
+    ####### START EVALUATE ######
+
+    emb = np.zeros((nrof_images, embedding_size))
+
+    idx_start = 0
+    model.eval()
+
+    with torch.no_grad():
+
+        for batch in iter(img_batch):
+
+            batch = batch.to(torch.device("cuda:0"))
+            embedding = model(batch).cpu()
+            emb[idx_start:idx_start+32,:] = embedding
+            idx_start += 32
+
+    tpr, fpr, acc = evaluate(emb, y_true, nrof_folds=nrof_fold)
+    print('Evaluating time: %.3fs' % (time.time() - evaluate_start))
+    print('Accuracy: %1.3f+-%1.3f' % (np.mean(acc), np.std(acc)))
+
+
+
+
