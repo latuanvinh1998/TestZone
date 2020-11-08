@@ -161,6 +161,7 @@ def model_evaluate(model, img_batch, y_true, nrof_images, nrof_fold=10 ,embeddin
     tpr, fpr, acc = evaluate(emb, y_true, nrof_folds=nrof_fold)
     print('Evaluating time: %.3fs' % (time.time() - evaluate_start))
     print('Accuracy: %1.3f+-%1.3f' % (np.mean(acc), np.std(acc)))
+    return acc
 
 
 

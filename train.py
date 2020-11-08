@@ -1,6 +1,7 @@
 import torch
 from torch import optim
 from torchvision import datasets, transforms
+from tensorboardX import SummaryWriter
 import pandas as pd
 from torch.nn import CrossEntropyLoss
 import os
@@ -9,8 +10,15 @@ from model import *
 from tqdm import tqdm
 import cv2
 import numpy as np
+ 
+from datetime import datetime
 from evaluate import *
 
+model_path = "../model/"
+log_dir = "../LOG/"
+
+
+os.makedirs(os.path.dirname(model_path), exist_ok=True)
 ###### PREPARE DATA ######
 transform = transforms.Compose([transforms.Resize(112), transforms.CenterCrop(112), 
 	transforms.RandomHorizontalFlip(),
@@ -38,17 +46,43 @@ model_evaluate(model, img_lfw, y_true, nrof_images)
 
 model.train()
 
-epoch_step = 0
+f = open('test.txt', 'r')
+step = f.readline()
+
+global_step = int(step)
+
 for img, label in iter(dataloader):
+
 	img = img.to(torch.device("cuda:0"))
 	label = label.to(torch.device("cuda:0"))
+
 	optimizer.zero_grad()
+
 	embedding = model(img)
 	theta = arc(embedding, label)
+
 	loss = CrossEntropyLoss()(theta, label)
-	if epoch_step%50 == 0:
-		print("Loss: %.3f" % (loss))
 	loss.backward()
 	optimizer.step()
 
-model_evaluate(model, img_lfw, y_true, nrof_images)
+	if global_step%100 == 0:
+
+		f = open('test.txt', 'w')
+		f.write(str(global_step+100))
+		f.close()
+
+		print("Global step &Loss: %.d %.3f" % (global_step, loss))
+
+	if global_step%1000 == 0:
+
+		acc = model_evaluate(model, img_lfw, y_true, nrof_images)
+		name = str(datetime.now())[:-10].replace(' ','-').replace(':','-')
+
+		torch.save(model.state_dict, model_path + 'model_{}_accuracy:{}.pth'.format(name, acc))
+		torch.save(arc.state_dict, model_path + ('arc{}_accuracy:{}.pth'.format(name, acc)))
+		torch.save(optimizer.state_dict, model_path + ('optimizer{}_accuracy:{}.pth'.format(name, acc)))
+
+		model.train()
+
+	global_step += 1
+
