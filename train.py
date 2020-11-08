@@ -14,11 +14,26 @@ import numpy as np
 from datetime import datetime
 from evaluate import *
 
+
+
 model_path = "../model/"
 log_dir = "../LOG/"
+name = str(datetime.now())[:-10].replace(' ','-').replace(':','-')
+
+
+
+
+writer = SummaryWriter(log_dir)
+
+
 
 
 os.makedirs(os.path.dirname(model_path), exist_ok=True)
+os.makedirs(os.path.dirname(log_dir+name+'/'), exist_ok=True)
+
+
+
+
 ###### PREPARE DATA ######
 transform = transforms.Compose([transforms.Resize(112), transforms.CenterCrop(112), 
 	transforms.RandomHorizontalFlip(),
@@ -27,6 +42,9 @@ transform = transforms.Compose([transforms.Resize(112), transforms.CenterCrop(11
 dataset = datasets.ImageFolder('../data/', transform=transform)
 class_num = dataset[-1][1] + 1
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=32)
+
+
+
 
 ###### LOAD LFW IMG ######
 img_lfw, y_true, nrof_images = load_lfw("pairs.txt", "../lfw")
@@ -42,47 +60,61 @@ optimizer = optim.SGD([
 	            {'params': paras_only_bn}
 	        ], lr = 1e-3, momentum = 0.9)
 
+
+
+
 model_evaluate(model, img_lfw, y_true, nrof_images)
 
 model.train()
 
-f = open('test.txt', 'r')
-step = f.readline()
+f = open('step.txt', 'r')
 
-global_step = int(step)
+global_step = int(f.readline())
+epoch = int(f.readline())
 
-for img, label in iter(dataloader):
+while epoch < 2:
+	for img, label in iter(dataloader):
 
-	img = img.to(torch.device("cuda:0"))
-	label = label.to(torch.device("cuda:0"))
+		img = img.to(torch.device("cuda:0"))
+		label = label.to(torch.device("cuda:0"))
 
-	optimizer.zero_grad()
+		optimizer.zero_grad()
 
-	embedding = model(img)
-	theta = arc(embedding, label)
+		embedding = model(img)
+		theta = arc(embedding, label)
 
-	loss = CrossEntropyLoss()(theta, label)
-	loss.backward()
-	optimizer.step()
+		loss = CrossEntropyLoss()(theta, label)
+		loss.backward()
+		optimizer.step()
 
-	if global_step%100 == 0:
+		if global_step%100 == 0:
 
-		f = open('test.txt', 'w')
-		f.write(str(global_step+100))
-		f.close()
+			f = open('step.txt', 'w')
+			f.write(str(global_step) + '\n' + str(epoch))
+			f.close()
 
-		print("Global step &Loss: %.d %.3f" % (global_step, loss))
+			writer.add_scalar('loss', loss, global_step)
 
-	if global_step%1000 == 0:
+			print("Global step: %.d ==== Epoch: %d ==== Loss: %.3f" % (global_step, epoch, loss))
 
-		acc = model_evaluate(model, img_lfw, y_true, nrof_images)
-		name = str(datetime.now())[:-10].replace(' ','-').replace(':','-')
+		if global_step%500 == 0:
 
-		torch.save(model.state_dict, model_path + 'model_{}_accuracy:{}.pth'.format(name, acc))
-		torch.save(arc.state_dict, model_path + ('arc{}_accuracy:{}.pth'.format(name, acc)))
-		torch.save(optimizer.state_dict, model_path + ('optimizer{}_accuracy:{}.pth'.format(name, acc)))
+			acc = model_evaluate(model, img_lfw, y_true, nrof_images)
 
-		model.train()
+			name = str(datetime.now())[:-10].replace(' ','-').replace(':','-')
 
-	global_step += 1
+			model_save = os.path.join(model_path, name +'/')
+			os.makedirs(os.path.dirname(model_save), exist_ok=True)
+
+			torch.save(model.state_dict, model_save + 'model_accuracy:{}.pth'.format(acc))
+			torch.save(arc.state_dict, model_save + 'arc_accuracy:{}.pth'.format(acc))
+			torch.save(optimizer.state_dict, model_save + 'optimizer_accuracy:{}.pth'.format(acc))
+
+			writer.add_scalar('accuracy', acc, global_step)
+
+			model.train()
+
+		global_step += 1
+	epoch += 1
+
 
