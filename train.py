@@ -39,9 +39,9 @@ transform = transforms.Compose([transforms.Resize(112), transforms.CenterCrop(11
 	transforms.RandomHorizontalFlip(),
 	transforms.ToTensor(), transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
 
-dataset = datasets.ImageFolder('../data/', transform=transform)
+dataset = datasets.ImageFolder('../imgs/', transform=transform)
 class_num = dataset[-1][1] + 1
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=32)
+dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True, num_workers=2)
 
 
 
@@ -72,7 +72,7 @@ f = open('step.txt', 'r')
 global_step = int(f.readline())
 epoch = int(f.readline())
 
-while epoch < 2:
+while epoch < 500:
 	for img, label in iter(dataloader):
 
 		img = img.to(torch.device("cuda:0"))
@@ -97,7 +97,7 @@ while epoch < 2:
 
 			print("Global step: %.d ==== Epoch: %d ==== Loss: %.3f" % (global_step, epoch, loss))
 
-		if global_step%500 == 0:
+		if global_step%10000 == 0 and global_step != 0:
 
 			acc = model_evaluate(model, img_lfw, y_true, nrof_images)
 
@@ -106,9 +106,9 @@ while epoch < 2:
 			model_save = os.path.join(model_path, name +'/')
 			os.makedirs(os.path.dirname(model_save), exist_ok=True)
 
-			torch.save(model.state_dict, model_save + 'model_accuracy:{}.pth'.format(acc))
-			torch.save(arc.state_dict, model_save + 'arc_accuracy:{}.pth'.format(acc))
-			torch.save(optimizer.state_dict, model_save + 'optimizer_accuracy:{}.pth'.format(acc))
+			torch.save(model.state_dict(), model_save + 'model_accuracy:{}.pth'.format(acc))
+			torch.save(arc.state_dict(), model_save + 'arc_accuracy:{}.pth'.format(acc))
+			torch.save(optimizer.state_dict(), model_save + 'optimizer_accuracy:{}.pth'.format(acc))
 
 			writer.add_scalar('accuracy', acc, global_step)
 
