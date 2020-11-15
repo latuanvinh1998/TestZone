@@ -12,7 +12,7 @@ import cv2
 import numpy as np
  
 from datetime import datetime
-from evaluate import *
+from evalsource import evaluate
 
 
 
@@ -46,9 +46,6 @@ dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True, n
 
 
 
-###### LOAD LFW IMG ######
-img_lfw, y_true, nrof_images = load_lfw("pairs.txt", "../lfw")
-
 
 model = MobileFaceNet(512).to(torch.device("cuda:0"))
 arc = Arcface(embedding_size=512, classnum=class_num).to(torch.device("cuda:0"))
@@ -60,10 +57,23 @@ optimizer = optim.SGD([
 	            {'params': paras_only_bn}
 	        ], lr = 1e-3, momentum = 0.9)
 
+###### LOAD MODEL ######
 
 
 
-model_evaluate(model, img_lfw, y_true, nrof_images)
+model.load_state_dict(torch.load('../model/2020-11-15-01-10/model_accuracy:0.6235.pth'))
+arc.load_state_dict(torch.load('../model/2020-11-15-01-10/arc_accuracy:0.6235.pth'))	
+optimizer.optimizer.load_state_dict(torch.load('../model/2020-11-15-01-10/optimizer_accuracy:0.6235.pth'))
+
+
+
+###### LOAD LFW IMG ######
+
+lfw, lfw_issame = get_val_pair('data', 'lfw')
+
+
+acc, std, best = evaluate(model=model, carray=lfw, issame=lfw_issame)
+print("accuracy: %1.3f" %(acc*100))
 
 model.train()
 
@@ -99,7 +109,13 @@ while epoch < 500:
 
 		if global_step%10000 == 0 and global_step != 0:
 
-			acc = model_evaluate(model, img_lfw, y_true, nrof_images)
+			acc, std, best = evaluate(model=model, carray=lfw, issame=lfw_issame)
+
+			acc = np.round(acc*100, 3)
+			std = np.round(std*100, 3)
+
+			print("Accuracy: {}+-{}".format(acc, std))
+			print("Best threshold: {}".format(best))				
 
 			name = str(datetime.now())[:-10].replace(' ','-').replace(':','-')
 
